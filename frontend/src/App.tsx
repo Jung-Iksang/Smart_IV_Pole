@@ -14,8 +14,8 @@ function App() {
   const [isInitialized, setIsInitialized] = useState(false)
 
   // Real-time WebSocket connection for ESP8266 hardware integration
+  // serverUrl will be automatically derived from VITE_API_URL environment variable
   const { isConnected, connectionStatus, error } = useWebSocket({
-    serverUrl: 'http://localhost:8081',
     reconnectDelay: 5000,
     debug: true // Enable debug logging
   })

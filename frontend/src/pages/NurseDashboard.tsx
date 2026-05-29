@@ -1,5 +1,6 @@
 import React from 'react';
 import { Bell, ChevronRight, Download } from 'lucide-react';
+import { LogoFull } from '../config/branding';
 
 const NurseDashboard = () => {
   return (
@@ -8,12 +9,7 @@ const NurseDashboard = () => {
       <div className="w-64 bg-slate-800 text-white">
         {/* Logo */}
         <div className="p-6 border-b border-slate-700">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-              <span className="text-white font-bold text-sm">IV</span>
-            </div>
-            <span className="font-semibold text-lg">SMART POLE</span>
-          </div>
+          <LogoFull size="md" />
         </div>
 
         {/* Navigation */}

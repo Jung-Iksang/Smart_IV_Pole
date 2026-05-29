@@ -20,31 +20,31 @@ export const calculateGTT = (
 };
 
 /**
- * mL/hr 계산
+ * mL/min 계산 (분당 투여 속도)
  * @param totalVolume 총 투여량 (mL)
  * @param duration 투여 시간 (분)
- * @returns mL per hour
+ * @returns mL per minute
  */
 export const calculateFlowRate = (
   totalVolume: number,
   duration: number
 ): number => {
   if (duration === 0) return 0;
-  return (totalVolume * 60) / duration;
+  return totalVolume / duration;
 };
 
 /**
- * 투여 시간 계산 (총 용량과 시간당 유량으로부터)
+ * 투여 시간 계산 (총 용량과 분당 유량으로부터)
  * @param totalVolume 총 투여량 (mL)
- * @param flowRatePerHour 시간당 유량 (mL/hr)
+ * @param flowRatePerMin 분당 유량 (mL/min)
  * @returns 투여 시간 (분)
  */
 export const calculateDuration = (
   totalVolume: number,
-  flowRatePerHour: number
+  flowRatePerMin: number
 ): number => {
-  if (flowRatePerHour === 0) return 0;
-  return (totalVolume * 60) / flowRatePerHour;
+  if (flowRatePerMin === 0) return 0;
+  return totalVolume / flowRatePerMin;
 };
 
 /**
@@ -136,8 +136,8 @@ export const createIVPrescription = (
 
 /**
  * 유량 편차 계산 및 알림 레벨 결정
- * @param prescribedRate 처방된 유량 (mL/hr)
- * @param actualRate 실제 측정된 유량 (mL/hr)
+ * @param prescribedRate 처방된 유량 (mL/min)
+ * @param actualRate 실제 측정된 유량 (mL/min)
  * @returns 편차 정보와 알림 레벨
  */
 export const calculateFlowDeviation = (
@@ -146,21 +146,21 @@ export const calculateFlowDeviation = (
 ) => {
   const deviation = actualRate - prescribedRate;
   const deviationPercent = (Math.abs(deviation) / prescribedRate) * 100;
-  
+
   let alertLevel: 'normal' | 'warning' | 'critical' = 'normal';
-  
+
   if (deviationPercent > 20) {
     alertLevel = 'critical';
   } else if (deviationPercent > 10) {
     alertLevel = 'warning';
   }
-  
+
   return {
     deviation: Math.round(deviation * 10) / 10,
     deviationPercent: Math.round(deviationPercent * 10) / 10,
     alertLevel,
-    message: deviationPercent > 10 
-      ? `유량 편차 ${deviationPercent.toFixed(1)}% (처방: ${prescribedRate}, 실제: ${actualRate})`
+    message: deviationPercent > 10
+      ? `유량 편차 ${deviationPercent.toFixed(1)}% (처방: ${prescribedRate.toFixed(2)} mL/min, 실제: ${actualRate.toFixed(2)} mL/min)`
       : null
   };
 };

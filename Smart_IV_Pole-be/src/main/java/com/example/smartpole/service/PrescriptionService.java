@@ -87,6 +87,7 @@ public class PrescriptionService {
 
         Prescription savedPrescription = prescriptionRepository.save(prescription);
         System.out.println("[PRESCRIPTION-CREATE] ✅ 처방 저장 완료 - Prescription ID: " + savedPrescription.getId());
+        System.out.println("[PRESCRIPTION-CREATE] 📊 유속: " + savedPrescription.getInfusionRateMlHr() + " (필드명: infusionRateMlHr, 실제 단위: mL/min)");
 
         // ✨ AUTO-CREATE InfusionSession if patient has a pole connected
         Optional<Pole> activePole = poleService.getActivePoleByPatient(prescription.getPatientId());
@@ -112,6 +113,7 @@ public class PrescriptionService {
                 session.setTotalVolumeMl(prescription.getTotalVolumeMl());
                 session.setRemainingVolume(prescription.getTotalVolumeMl());
                 session.setFlowRate(new java.math.BigDecimal(prescription.getInfusionRateMlHr()));
+                System.out.println("[SESSION-CREATE] 📊 InfusionSession.flowRate 설정: " + prescription.getInfusionRateMlHr() + " mL/min");
 
                 // Calculate expected end time
                 double durationHours = prescription.getDurationHours();

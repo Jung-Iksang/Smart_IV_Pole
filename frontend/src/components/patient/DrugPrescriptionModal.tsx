@@ -292,7 +292,7 @@ const DrugPrescriptionModal: React.FC<DrugPrescriptionModalProps> = ({
                     <div className="text-2xl font-bold text-green-600">
                       {calculatedValues.flowRate}
                     </div>
-                    <div className="text-sm text-green-700">mL/hr (시간당 투여량)</div>
+                    <div className="text-sm text-green-700">mL/분 (분당 투여 속도)</div>
                   </div>
                 </div>
                 <div className="border-t border-green-200 pt-3">

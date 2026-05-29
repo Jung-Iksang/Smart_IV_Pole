@@ -16,7 +16,7 @@ export interface IVPrescription {
   duration: number; // 분
   gttFactor: 20 | 60; // macro/micro drip (20 GTT/mL or 60 GTT/mL)
   calculatedGTT: number; // GTT/min
-  calculatedFlowRate: number; // mL/hr
+  calculatedFlowRate: number; // mL/min (분당 투여 속도)
   prescribedBy: string; // 의사명
   prescribedAt: Date; // 처방 작성 시간
   startedAt?: Date; // 투여 시작 시간 (실제 IV 연결 시점)
@@ -55,11 +55,13 @@ export interface PoleData {
   percentage: number;      // 잔량 퍼센트 (%)
   battery: number;         // 배터리 잔량 (%)
   status: 'online' | 'offline' | 'error';
-  flowRate: number;        // 계산된 유량 (mL/h)
-  prescribedRate: number;  // 처방된 유량 (mL/h)
+  flowRate: number;        // 계산된 유량 (mL/min)
+  prescribedRate: number;  // 처방된 유량 (mL/min)
   estimatedTime: number;   // 예상 완료시간 (분)
   lastUpdate: Date;
   isButtonPressed: boolean; // 호출 버튼 상태
+  hasActiveAlert?: boolean; // ESP8266 알림 발생 여부 (퍼센트가 아닌 실제 알림 기준)
+  alertSeverity?: 'warning' | 'critical'; // 활성 알림의 심각도
 }
 
 export interface IVSession {

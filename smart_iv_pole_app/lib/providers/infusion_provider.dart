@@ -121,7 +121,7 @@ class InfusionNotifier extends StateNotifier<InfusionState> {
     _pollingTimer?.cancel();
 
     _pollingTimer = Timer.periodic(
-      const Duration(seconds: 10),
+      const Duration(minutes: 1), // 1분마다 폴링하여 데이터 갱신
       (_) async {
         // mounted 체크 후에만 데이터 새로고침
         if (mounted) {
@@ -139,11 +139,19 @@ class InfusionNotifier extends StateNotifier<InfusionState> {
 
   /// 데이터 새로고침
   Future<void> refreshData() async {
+    print('🔄 [APP] Polling data at ${DateTime.now().toIso8601String()}');
+    
     // disposed 체크를 먼저 수행
-    if (!mounted) return;
+    if (!mounted) {
+      print('⚠️ [APP] Skipping - provider disposed');
+      return;
+    }
 
     final patient = state.patient;
-    if (patient == null) return;
+    if (patient == null) {
+      print('⚠️ [APP] Skipping - no patient logged in');
+      return;
+    }
 
     try {
       // 1. 수액 세션 조회 (활성 세션 또는 처방 정보)
@@ -174,8 +182,10 @@ class InfusionNotifier extends StateNotifier<InfusionState> {
           isConnected: isConnected,
           error: null,
         );
+        print('✅ [APP] Data refreshed - Session: ${session != null}, Alerts: ${alerts.length}');
       }
     } catch (e) {
+      print('❌ [APP] Refresh error: $e');
       // disposed 체크
       if (mounted) {
         state = state.copyWith(
@@ -185,6 +195,7 @@ class InfusionNotifier extends StateNotifier<InfusionState> {
       }
     }
   }
+
 
   /// 간호사 호출
   Future<void> callNurse() async {

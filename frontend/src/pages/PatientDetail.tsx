@@ -6,6 +6,7 @@ import { useMQTT } from '../hooks/useMQTT';
 import { calculateProgress, calculateRemainingTime, calculateEstimatedEndTime } from '../utils/gttCalculator';
 import PatientEditModal from '../components/patient/PatientEditModal';
 import DrugPrescriptionModal from '../components/patient/DrugPrescriptionModal';
+import { LogoFull } from '../config/branding';
 
 const PatientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -145,6 +146,34 @@ const PatientDetail: React.FC = () => {
   const remainingTime = (prescription && startTime) ? calculateRemainingTime(startTime, prescription.duration, currentTime) : 0;
   const estimatedEndTime = (prescription && startTime) ? calculateEstimatedEndTime(startTime, prescription.duration) : null;
 
+  // 🔌 NEW: Pole disconnection handler
+  const handleDisconnectPole = async () => {
+    if (!patient?.id) {
+      alert('⚠️ 환자 정보를 찾을 수 없습니다');
+      return;
+    }
+
+    // Confirmation dialog
+    const confirmed = window.confirm(
+      `⚠️ ${patient.name} 환자의 폴대 연결을 해제하시겠습니까?\n\n` +
+      `- 폴대가 다른 환자에게 사용 가능해집니다\n` +
+      `- 현재 투여 세션이 종료됩니다\n` +
+      `- 실시간 모니터링이 중단됩니다`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await useWardStore.getState().disconnectPoleFromPatient(patient.id);
+      alert('✅ 폴대 연결이 해제되었습니다');
+      // Refresh patient data
+      await fetchPatients();
+    } catch (error) {
+      console.error('❌ Pole disconnection failed:', error);
+      alert(`❌ 연결 해제 실패: ${error instanceof Error ? error.message : '알 수 없는 오류'}`);
+    }
+  };
+
   const getStatusColor = () => {
     if (!patientPoleData || patientPoleData.status === 'offline') return 'text-gray-500';
     if (patientPoleData.percentage < 10) return 'text-red-500';
@@ -168,12 +197,7 @@ const PatientDetail: React.FC = () => {
       <div className="w-64 bg-slate-800 text-white">
         {/* Logo */}
         <div className="p-6 border-b border-slate-700">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
-              <span className="text-white font-bold text-sm">IV</span>
-            </div>
-            <span className="font-semibold text-lg">SMART POLE</span>
-          </div>
+          <LogoFull size="md" />
         </div>
 
         {/* Navigation */}
@@ -290,10 +314,10 @@ const PatientDetail: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-medium text-gray-600 mb-1">투여 속도</h3>
                 <div className="text-2xl font-bold text-gray-900 mb-1">
-                  {patientPoleData ? `${patientPoleData.flowRate.toFixed(0)} mL/h` : '0 mL/h'}
+                  {patientPoleData ? `${patientPoleData.flowRate.toFixed(2)} mL/분` : '0 mL/분'}
                 </div>
                 <div className="text-xs text-gray-600">
-                  처방: {prescription ? `${prescription.calculatedFlowRate.toFixed(0)} mL/h` : '미설정'}
+                  처방: {prescription ? `${prescription.calculatedFlowRate.toFixed(2)} mL/분` : '미설정'}
                 </div>
               </div>
 
@@ -320,6 +344,33 @@ const PatientDetail: React.FC = () => {
                 </div>
               </div>
             </div>
+
+            {/* 🔌 NEW: Pole Disconnection Button */}
+            {patientPoleData && patient?.poleId && (
+              <div className="bg-white p-4 rounded-xl shadow-sm mb-6 border-2 border-red-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                      <Settings className="w-5 h-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">폴대 연결 관리</h3>
+                      <p className="text-sm text-gray-600">현재 폴대: {patient.poleId}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleDisconnectPole}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 active:bg-red-700 transition-colors flex items-center gap-2 font-medium"
+                  >
+                    <span>🔌</span>
+                    <span>연결 해제</span>
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-2 ml-13">
+                  ⚠️ 연결 해제 시 투여 세션이 종료되고 폴대가 다른 환자에게 사용 가능해집니다
+                </p>
+              </div>
+            )}
 
             {/* IV Progress Chart */}
             {prescription && (

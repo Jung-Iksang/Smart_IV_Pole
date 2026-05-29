@@ -126,17 +126,31 @@ public class MobileInfusionController {
             Prescription prescription,
             DrugType drugType
     ) {
-        // 하드웨어 데이터 확인 (remainingVolume이 totalVolume보다 작으면 하드웨어가 업데이트한 것)
-        boolean hasHardwareData = session.getRemainingVolume() < session.getTotalVolumeMl();
+        // 하드웨어 데이터 확인 (consumedVolume이 있으면 하드웨어가 업데이트한 것)
+        boolean hasHardwareData = session.getConsumedVolumeMl() != null && session.getConsumedVolumeMl() > 0;
 
-        // 잔량 퍼센트 계산
-        double remainingPercentage = (session.getRemainingVolume().doubleValue() / session.getTotalVolumeMl()) * 100;
+        // 퍼센트 계산 (투여량 기준으로 변경 - 수액팩 무게 보정)
+        double consumedPercentage = 0;
+        double remainingPercentage = 100.0;
+
+        if (hasHardwareData) {
+            // 하드웨어 데이터 있을 때: 투여량 기준 (무게 감소량)
+            consumedPercentage = (session.getConsumedVolumeMl().doubleValue() / session.getTotalVolumeMl()) * 100.0;
+            remainingPercentage = 100.0 - Math.min(100.0, consumedPercentage);
+        } else {
+            // 하드웨어 없을 때: 시간 기반 계산
+            long elapsedMinutes = java.time.Duration.between(session.getStartTime(), LocalDateTime.now()).toMinutes();
+            double totalDurationMin = session.getTotalVolumeMl() / session.getFlowRate().doubleValue();
+            consumedPercentage = (elapsedMinutes / totalDurationMin) * 100.0;
+            remainingPercentage = 100.0 - Math.min(100.0, consumedPercentage);
+        }
 
         // 남은 시간 계산 (현재 투여 속도 기준)
+        // FlowRate는 mL/min 단위이므로 분으로 바로 계산
         int remainingTimeMinutes = 0;
         if (session.getFlowRate().compareTo(BigDecimal.ZERO) > 0) {
-            double remainingHours = session.getRemainingVolume().doubleValue() / session.getFlowRate().doubleValue();
-            remainingTimeMinutes = (int) (remainingHours * 60);
+            double remainingMin = session.getRemainingVolume().doubleValue() / session.getFlowRate().doubleValue();
+            remainingTimeMinutes = (int) remainingMin;
         }
 
         // 종료 예정 시간 계산
@@ -152,8 +166,12 @@ public class MobileInfusionController {
                 .gttFactor(BigDecimal.valueOf(prescription.getGttFactor()))
                 .calculatedGtt(BigDecimal.valueOf(prescription.getCalculatedGtt()))
                 .infusionRateMlHr(BigDecimal.valueOf(prescription.getInfusionRateMlHr()))
+                // 투여량 추적 (수액팩 무게 보정)
+                .consumedVolumeMl(session.getConsumedVolumeMl())
+                .initialWeightGrams(session.getInitialWeightGrams())
+                .baselineWeightGrams(session.getBaselineWeightGrams())
                 // 하드웨어 데이터 (있으면)
-                .currentWeightGrams(hasHardwareData ? session.getRemainingVolume() : null) // 무게는 별도 센서 필요
+                .currentWeightGrams(hasHardwareData ? session.getRealTimeWeight() != null ? session.getRealTimeWeight().intValue() : null : null)
                 .remainingVolumeMl(session.getRemainingVolume())
                 .currentFlowRate(session.getFlowRate())
                 // 계산된 정보

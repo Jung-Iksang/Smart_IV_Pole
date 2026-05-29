@@ -42,7 +42,7 @@ The project follows a modular retrofit design with these main components:
 ### Backend (Spring Boot)
 - **Framework**: Spring Boot 3.5.5 with Java 21
 - **Database**: MariaDB with Hibernate JPA
-- **Configuration**: Hibernate DDL auto-update, external MariaDB server at 61.245.248.192:3306
+- **Configuration**: Hibernate DDL auto-update, external MariaDB server at 61.245.248.193:3308
 - **Port**: 8081 (configured in application.yml)
 - **Dependencies**: Spring Web, Spring Data JPA, Validation, WebFlux, Lombok
 
@@ -56,7 +56,7 @@ The project follows a modular retrofit design with these main components:
 - **Port**: 5173 (Vite default)
 
 ### Database Schema (MariaDB)
-- **Server**: 61.245.248.192:3306 (username: yizy, database: smartpole)
+- **Server**: 61.245.248.193:3308 (username: yizy, database: smartpole)
 - **patients**: Patient info with room_id and bed_number for bed assignment persistence
 - **drip_types**: IV fluid types and medications
 - **infusion_sessions**: Active IV sessions with real-time monitoring data

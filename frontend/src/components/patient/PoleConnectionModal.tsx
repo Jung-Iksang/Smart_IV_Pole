@@ -46,7 +46,8 @@ const PoleConnectionModal: React.FC<PoleConnectionModalProps> = ({
     setError('');
 
     try {
-      const response = await fetch('http://localhost:8081/api/v1/poles/online');
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+      const response = await fetch(`${API_URL}/poles/online`);
 
       if (!response.ok) {
         throw new Error('온라인 폴대 목록을 불러올 수 없습니다');

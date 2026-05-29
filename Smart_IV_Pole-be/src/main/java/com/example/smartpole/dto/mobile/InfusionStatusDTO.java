@@ -28,12 +28,17 @@ public class InfusionStatusDTO {
     private Integer totalVolumeMl;      // 총 용량 (mL)
     private BigDecimal gttFactor;       // GTT factor (20 또는 60)
     private BigDecimal calculatedGtt;   // 계산된 GTT (방울/분)
-    private BigDecimal infusionRateMlHr; // 투여 속도 (mL/hr)
+    private BigDecimal infusionRateMlHr; // 투여 속도 (mL/min) - 필드명은 레거시 호환성 유지
+
+    // 투여량 추적 (수액팩 무게 보정)
+    private Integer consumedVolumeMl;    // 투여된 양 (mL) - 무게 감소량 기준
+    private Double initialWeightGrams;   // 초기 전체 무게 (수액+팩)
+    private Double baselineWeightGrams;  // 영점 무게 (빈 폴대)
 
     // 하드웨어 실시간 데이터 (없으면 null)
     private Integer currentWeightGrams;  // 현재 무게 (g) - load cell 센서값
     private Integer remainingVolumeMl;   // 남은 용량 (mL) - 센서 기반 계산
-    private BigDecimal currentFlowRate;  // 현재 투여 속도 (mL/hr) - 실시간 측정
+    private BigDecimal currentFlowRate;  // 현재 투여 속도 (mL/min) - 실시간 측정
 
     // 계산된 정보
     private Double remainingPercentage;  // 잔량 퍼센트 (%)

@@ -9,11 +9,21 @@ interface BedCardProps {
 }
 
 const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
+  // 🔥 FIX: Alert-based color logic (not percentage-based)
+  // Only show red/yellow when there's an ACTIVE ALERT from ESP8266
   const getStatusColor = (): StatusColor => {
     if (!bed.poleData || bed.poleData.status === 'offline') return 'offline';
+
+    // ✅ PRIORITY 1: Check for active alert (from ESP8266 /api/esp/alert)
+    if (bed.poleData.hasActiveAlert) {
+      // Use alert severity to determine color
+      return bed.poleData.alertSeverity === 'critical' ? 'critical' : 'warning';
+    }
+
+    // ✅ PRIORITY 2: Check hardware status
     if (bed.poleData.status === 'error') return 'critical';
-    if (bed.poleData.percentage < 10) return 'critical';
-    if (bed.poleData.percentage <= 30) return 'warning';
+
+    // ✅ DEFAULT: No active alert = normal (ignore percentage thresholds)
     return 'normal';
   };
 
@@ -32,33 +42,23 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
     }
   };
 
-  const getGaugeColor = (status: StatusColor) => {
-    switch (status) {
-      case 'normal':
-        return 'bg-success';
-      case 'warning':
-        return 'bg-warning';
-      case 'critical':
-        return 'bg-error';
-      case 'offline':
-        return 'bg-gray-400';
-      default:
-        return 'bg-gray-400';
-    }
-  };
-
   const formatTime = (minutes: number): string => {
     if (minutes <= 0) return '완료';
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.round(minutes % 60);
     if (hours > 0) {
       return `${hours}시간 ${mins}분`;
     }
-    return `${mins}분`;
+    return `${Math.round(minutes)}분`;
   };
 
   const status = getStatusColor();
   const isOccupied = bed.status === 'occupied' && bed.patient;
+
+  // 디버깅: 퍼센트 값 확인
+  if (isOccupied && bed.poleData) {
+    console.log(`🔍 [BedCard ${bed.bedNumber}] Percentage: ${bed.poleData.percentage}%, CurrentVolume: ${bed.poleData.currentVolume}mL, Capacity: ${bed.poleData.capacity}mL`);
+  }
 
   if (!isOccupied) {
     return (
@@ -83,15 +83,15 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
     <div
       onClick={onClick}
       className={cn(
-        'border-2 rounded-xl p-6 cursor-pointer transition-all duration-200 h-64 flex flex-col',
+        'border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 h-64 flex flex-col',
         getStatusColorClass(status),
         status === 'critical' && 'shadow-floating'
       )}
     >
       {/* Header */}
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start mb-3">
         <div>
-          <div className="text-lg font-bold text-gray-900">{bed.bedNumber}</div>
+          <div className="text-base font-bold text-gray-900">{bed.bedNumber}</div>
           <div className="text-sm font-medium text-gray-700">{bed.patient?.name}</div>
         </div>
         <div className="flex items-center gap-2">
@@ -117,8 +117,8 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
         {bed.poleData ? (
           <>
             {/* IV Fluid Level */}
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Droplet className={`w-4 h-4 ${
                     status === 'normal' ? 'text-green-600' :
@@ -133,10 +133,16 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
               </div>
               
               {/* Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-3">
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div
-                  className={`h-3 rounded-full transition-all duration-500 ${getGaugeColor(status)}`}
-                  style={{ width: `${Math.max(bed.poleData.percentage, 2)}%` }}
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.max(bed.poleData.percentage, 2)}%`,
+                    backgroundColor: status === 'normal' ? '#4CAF50' :
+                                   status === 'warning' ? '#FFC107' :
+                                   status === 'critical' ? '#F44336' :
+                                   '#9CA3AF'
+                  }}
                 ></div>
               </div>
               
@@ -147,7 +153,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
             </div>
 
             {/* Flow Rate - 투여 속도 (측정값 vs 처방값) */}
-            <div className="mb-3">
+            <div className="mb-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                   <Activity className="w-3 h-3 text-gray-500" />
@@ -167,7 +173,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
             </div>
 
             {/* Estimated Time */}
-            <div className="mb-3">
+            <div className="mb-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1">
                   <Clock className="w-3 h-3 text-gray-500" />
@@ -205,11 +211,11 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
       </div>
 
       {/* Bottom Status */}
-      <div className="mt-4 pt-3 border-t border-gray-200">
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-600">담당: {bed.patient?.nurseName}</span>
+      <div className="mt-2 pt-2 border-t border-gray-200">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-gray-600 truncate">담당: {bed.patient?.nurseName}</span>
           <div className={`
-            px-2 py-1 rounded-full text-xs font-medium
+            px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0
             ${status === 'normal' ? 'bg-green-100 text-green-700' :
               status === 'warning' ? 'bg-orange-100 text-orange-700' :
               status === 'critical' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}

@@ -5,11 +5,12 @@ class InfusionSession {
   final String poleId;
   final String medicationName;
   final double totalVolume; // 총 용량 (mL)
-  final double currentWeight; // 현재 무게 (g)
+  final double currentWeight; // 현재 무게 (g) - 하드웨어 센서값
+  final double remainingVolume; // 남은 용량 (mL) - 계산된 값
   final double remainingPercentage; // 잔량 (%)
   final int remainingTimeMinutes; // 남은 시간 (분)
   final InfusionStatus status; // 상태
-  final double flowRate; // 투여 속도 (방울/분)
+  final double flowRate; // 투여 속도 (mL/분)
   final DateTime startTime; // 시작 시간
   final DateTime? expectedEndTime; // 종료 예정 시간
   final DateTime lastUpdate; // 마지막 업데이트
@@ -23,6 +24,7 @@ class InfusionSession {
     required this.medicationName,
     required this.totalVolume,
     required this.currentWeight,
+    required this.remainingVolume,
     required this.remainingPercentage,
     required this.remainingTimeMinutes,
     required this.status,
@@ -36,17 +38,56 @@ class InfusionSession {
 
   factory InfusionSession.fromJson(Map<String, dynamic> json) {
     try {
-      return InfusionSession(
-        id: json['sessionId']?.toString() ?? json['id']?.toString() ?? '',
-        patientId: json['patientId']?.toString() ?? '',
-        poleId: json['poleId']?.toString() ?? '',
-        medicationName: json['medicationName'] ?? json['dripName'] ?? 'Unknown',
-        totalVolume: (json['totalVolumeMl'] ?? json['totalVolume'] ?? 0).toDouble(),
-        currentWeight: (json['currentWeightGrams'] ?? json['currentWeight'] ?? 0).toDouble(),
-        remainingPercentage: (json['remainingPercentage'] ?? 0).toDouble(),
-        remainingTimeMinutes: json['remainingTimeMinutes'] ?? json['calculatedRemainingTime'] ?? 0,
-        status: _parseStatus(json['status']),
-        flowRate: (json['currentFlowRate'] ?? json['flowRate'] ?? json['gtt'] ?? 0).toDouble(),
+      print('🔍 [MODEL] InfusionSession.fromJson - Input JSON: $json');
+
+      // Extract and log each field individually
+      final sessionId = json['sessionId']?.toString() ?? json['id']?.toString() ?? '';
+      final patientId = json['patientId']?.toString() ?? '';
+      final poleId = json['poleId']?.toString() ?? '';
+      final medicationName = json['medicationName'] ?? json['dripName'] ?? 'Unknown';
+      final totalVolume = (json['totalVolumeMl'] ?? json['totalVolume'] ?? 0).toDouble();
+      final currentWeight = (json['currentWeightGrams'] ?? json['currentWeight'] ?? 0).toDouble();
+      final remainingVolume = (json['remainingVolumeMl'] ?? json['remainingVolume'] ?? 0).toDouble();
+
+      // 🔄 RECALCULATE PERCENTAGE: 프론트엔드와 동일한 로직 적용
+      // 백엔드 percentage는 수액팩 무게 때문에 100% 초과 가능 → 무시
+      // 처방 totalVolume 기준으로 재계산: (remainingVolume / totalVolume) * 100
+      final backendPercentage = (json['remainingPercentage'] ?? 0).toDouble();
+      final remainingPercentage = totalVolume > 0
+          ? (remainingVolume / totalVolume) * 100
+          : 0.0;
+
+      print('📊 [PERCENTAGE] Recalculated: $remainingVolume/$totalVolume mL = ${remainingPercentage.toStringAsFixed(1)}% (Backend: ${backendPercentage.toStringAsFixed(1)}%)');
+
+      final remainingTimeMinutes = json['remainingTimeMinutes'] ?? json['calculatedRemainingTime'] ?? 0;
+      final status = _parseStatus(json['status']);
+      final flowRate = (json['currentFlowRate'] ?? json['flowRate'] ?? json['gtt'] ?? 0).toDouble();
+
+      print('🔍 [MODEL] Parsed fields:');
+      print('  - sessionId: $sessionId');
+      print('  - patientId: $patientId');
+      print('  - poleId: $poleId');
+      print('  - medicationName: $medicationName');
+      print('  - totalVolume: $totalVolume');
+      print('  - currentWeight: $currentWeight');
+      print('  - remainingVolume: $remainingVolume');
+      print('  - remainingPercentage: $remainingPercentage');
+      print('  - remainingTimeMinutes: $remainingTimeMinutes');
+      print('  - status: $status');
+      print('  - flowRate: $flowRate');
+
+      final session = InfusionSession(
+        id: sessionId,
+        patientId: patientId,
+        poleId: poleId,
+        medicationName: medicationName,
+        totalVolume: totalVolume,
+        currentWeight: currentWeight,
+        remainingVolume: remainingVolume,
+        remainingPercentage: remainingPercentage,
+        remainingTimeMinutes: remainingTimeMinutes,
+        status: status,
+        flowRate: flowRate,
         startTime: json['startTime'] != null
             ? DateTime.parse(json['startTime'])
             : DateTime.now(),
@@ -59,10 +100,13 @@ class InfusionSession {
         dataSource: json['dataSource']?.toString() ?? 'INITIAL_SETTING',
         isHardwareConnected: _parseBool(json['isHardwareConnected']),
       );
+
+      print('✅ [MODEL] Successfully created InfusionSession: ${session.id}');
+      return session;
     } catch (e, stackTrace) {
-      print('InfusionSession.fromJson error: $e');
-      print('JSON data: $json');
-      print('Stack trace: $stackTrace');
+      print('❌ [MODEL] InfusionSession.fromJson error: $e');
+      print('❌ [MODEL] JSON data: $json');
+      print('❌ [MODEL] Stack trace: $stackTrace');
       rethrow;
     }
   }
@@ -135,6 +179,9 @@ class InfusionSession {
       return '$minutes분';
     }
   }
+
+  /// mL/분 형식의 투여 속도 (항상 일관된 형식으로 반환)
+  String get formattedFlowRate => '${flowRate.toStringAsFixed(2)} mL/분';
 
   /// 상태 텍스트
   String get statusText {

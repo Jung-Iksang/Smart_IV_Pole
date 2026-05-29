@@ -32,7 +32,9 @@ export const useWebSocket = (config?: WebSocketConfig): WebSocketHookReturn => {
 
   const { updatePoleData, addAlert } = useWardStore();
 
-  const serverUrl = config?.serverUrl || 'http://localhost:8081';
+  // Use environment variable for API URL (supports both local and remote)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+  const serverUrl = config?.serverUrl || API_BASE.replace('/api/v1', '');
   const reconnectDelay = config?.reconnectDelay || 5000;
   const debug = config?.debug || false;
 
@@ -51,7 +53,7 @@ export const useWebSocket = (config?: WebSocketConfig): WebSocketHookReturn => {
 
       connectHeaders: {},
 
-      debug: debug ? (str) => console.log('🔌 STOMP:', str) : undefined,
+      debug: debug ? (str) => console.log('🔌 STOMP:', str) : () => {},
 
       reconnectDelay: reconnectDelay,
       heartbeatIncoming: 4000,
@@ -150,18 +152,56 @@ export const useWebSocket = (config?: WebSocketConfig): WebSocketHookReturn => {
         timestamp
       } = data;
 
+      // 🔄 RECALCULATE PERCENTAGE: Use prescription total volume as denominator
+      const { patients, poleData: existingPoleData } = useWardStore.getState();
+      const patient = patients.find((p) => p.id === `P${patient_id}`);
+      const totalVolume = patient?.currentPrescription?.totalVolume || 500;
+      const recalculatedPercentage = (remaining_volume / totalVolume) * 100;
+
+      console.log(`📊 [PERCENTAGE] Patient P${patient_id}: ${remaining_volume}/${totalVolume}mL = ${recalculatedPercentage.toFixed(1)}% (ESP: ${percentage}%)`);
+
+      // ✅ FIX: Clear alert state when ESP8266 sends normal data
+      // Any non-error state should clear the alert flag
+      const existingPole = existingPoleData.get(device_id);
+
+      let alertState = {};
+
+      // 🔥 비정상 상태만 명시적으로 체크 - 나머지는 모두 정상으로 처리
+      const isAbnormalState = state === 'ERROR' || state === 'CRITICAL' || state === 'ALERT';
+
+      if (!isAbnormalState) {
+        // 🟢 정상 상태: alert 상태 클리어 (STABLE, Normal, MONITORING 등 모두 정상)
+        alertState = {
+          hasActiveAlert: false,
+          alertSeverity: undefined,
+        };
+        if (existingPole?.hasActiveAlert) {
+          console.log(`✅ [NORMAL-DATA] Pole ${device_id} received normal data (state: ${state}), clearing alert state`);
+        }
+      } else {
+        // ⚠️ 비정상 상태: 기존 alert 상태 보존
+        alertState = existingPole?.hasActiveAlert
+          ? {
+              hasActiveAlert: existingPole.hasActiveAlert,
+              alertSeverity: existingPole.alertSeverity,
+            }
+          : {};
+      }
+
       // Update pole data in store
       updatePoleData(device_id, {
         poleId: device_id,
         patientId: `P${patient_id}`, // Include patientId for bed matching
         weight: current_weight,
         currentVolume: remaining_volume,
-        percentage: percentage,
-        flowRate: flow_rate_measured,              // ✅ 투여 속도 (측정값)
-        prescribedRate: flow_rate_prescribed,      // ✅ 투여 속도 (처방값)
-        status: state === 'STABLE' ? 'online' : 'error',
+        capacity: totalVolume,                       // ✅ Set capacity from prescription
+        percentage: recalculatedPercentage,          // ✅ Recalculated based on prescription
+        flowRate: flow_rate_measured,                // ✅ ESP already sends mL/min
+        prescribedRate: flow_rate_prescribed,        // ✅ ESP already sends mL/min
+        status: isAbnormalState ? 'error' : 'online', // 🔥 비정상 상태만 error, 나머지는 online
         estimatedTime: remaining_time_sec ? remaining_time_sec / 60 : 0, // Convert seconds to minutes
         lastUpdate: new Date(timestamp),
+        ...alertState, // ✅ Clear or preserve alert state based on ESP state
       });
 
       setLastMessage({
@@ -193,13 +233,39 @@ export const useWebSocket = (config?: WebSocketConfig): WebSocketHookReturn => {
         timestamp
       } = data;
 
+      // ✅ HANDLE ANOMALY_RESOLVED: ESP8266 sends this when alert condition clears
+      if (alert_type === 'ANOMALY_RESOLVED') {
+        updatePoleData(device_id, {
+          hasActiveAlert: false,
+          alertSeverity: undefined,
+          status: 'online', // Restore to online status
+        });
+
+        console.log(`✅ [ALERT-RESOLVED] Pole ${device_id} anomaly resolved, clearing hasActiveAlert flag`);
+
+        // Don't add "ANOMALY_RESOLVED" to alerts list (it's just a status update)
+        return;
+      }
+
+      // ✅ FIX: Set hasActiveAlert flag on pole data
+      // This will trigger red/yellow color in BedCard
+      const alertSeverity = severity === 'critical' ? 'critical' : 'warning';
+
+      updatePoleData(device_id, {
+        hasActiveAlert: true,
+        alertSeverity: alertSeverity,
+        status: 'error', // Mark as error state during alert
+      });
+
+      console.log(`🚨 [ALERT-FLAG] Pole ${device_id} alert active: severity=${alertSeverity}`);
+
       // Add alert to store
       addAlert({
         id: `ALT${alert_id}`,
         poleId: device_id,
         patientId: `P${patient_id}`,
         type: alert_type === 'FLOW_RATE_ABNORMAL' ? 'abnormal' : 'low',
-        severity: severity === 'critical' ? 'critical' : 'warning',
+        severity: alertSeverity,
         message: alertMessage || `유속 이상 감지 (${deviation_percent.toFixed(1)}% 편차)`,
         timestamp: new Date(timestamp),
         acknowledged: false,
@@ -259,11 +325,15 @@ export const usePoleWebSocket = (poleId: string, config?: WebSocketConfig) => {
   const [poleData, setPoleData] = useState<any>(null);
   const clientRef = useRef<Client | null>(null);
 
-  const serverUrl = config?.serverUrl || 'http://localhost:8081';
+  // Use environment variable for API URL (supports both local and remote)
+  const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+  const serverUrl = config?.serverUrl || API_BASE.replace('/api/v1', '');
 
   useEffect(() => {
     const client = new Client({
       webSocketFactory: () => new SockJS(`${serverUrl}/ws`) as any,
+
+      debug: () => {},
 
       onConnect: () => {
         console.log(`✅ Connected to pole ${poleId}`);

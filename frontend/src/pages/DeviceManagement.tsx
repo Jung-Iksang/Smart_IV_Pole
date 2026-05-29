@@ -60,7 +60,8 @@ const DeviceManagement: React.FC = () => {
     const fetchPoles = async () => {
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:8081/api/v1/poles/online');
+        const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081/api/v1';
+        const response = await fetch(`${API_URL}/poles/online`);
 
         if (response.ok) {
           const backendPoles = await response.json();

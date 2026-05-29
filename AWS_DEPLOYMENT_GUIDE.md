@@ -375,7 +375,7 @@ SPRING_DATASOURCE_PASSWORD=your-secure-password
 #### 기존 데이터 마이그레이션
 ```bash
 # VM에서 데이터 덤프
-mysqldump -h 61.245.248.192 -u yizy -p smartpole > smartpole_backup.sql
+mysqldump -h 61.245.248.193 -P 3308 -u yizy -p smartpole > smartpole_backup.sql
 
 # RDS로 복원
 mysql -h smartpole-db.xxxxxxxxx.ap-northeast-2.rds.amazonaws.com \

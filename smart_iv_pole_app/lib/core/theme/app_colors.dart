@@ -6,6 +6,13 @@ class AppColors {
   static const Color primaryBlue = Color(0xFF1E88E5); // 진한 블루
   static const Color secondaryPurple = Color(0xFF7B1FA2); // 진한 퍼플
 
+  // Friendly Colors - 친근한 터콰이즈 테마
+  static const Color gradientStart = Color(0xFF4DD0E1); // 밝은 터콰이즈
+  static const Color gradientEnd = Color(0xFF26C6DA); // 진한 터콰이즈
+  static const Color friendlyTeal = Color(0xFF4DD0E1); // 친근한 청록색
+  static const Color softGreen = Color(0xFF66BB6A); // 부드러운 그린
+  static const Color warmOrange = Color(0xFFFFA726); // 따뜻한 오렌지
+
   // Background Colors
   static const Color background = Color(0xFFF5F5F5); // 연한 그레이
   static const Color surface = Color(0xFFFFFFFF); // 화이트

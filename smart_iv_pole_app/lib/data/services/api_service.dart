@@ -65,20 +65,31 @@ class ApiService {
           )
           .timeout(ApiConstants.connectionTimeout);
 
+      print('🔍 [API] getCurrentInfusion - Status: ${response.statusCode}');
+      print('🔍 [API] Response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
 
-        // 디버깅: success 필드 타입 확인
-        print('getCurrentInfusion - success type: ${data['success'].runtimeType}, value: ${data['success']}');
+        print('🔍 [API] Parsed JSON: $data');
+        print('🔍 [API] success type: ${data['success'].runtimeType}, value: ${data['success']}');
+        print('🔍 [API] data field: ${data['data']}');
 
         if (_parseBool(data['success']) && data['data'] != null) {
-          return InfusionSession.fromJson(data['data']);
+          print('🔍 [API] Attempting to parse InfusionSession from: ${data['data']}');
+          final session = InfusionSession.fromJson(data['data']);
+          print('✅ [API] Successfully parsed session: ${session?.id}');
+          return session;
+        } else {
+          print('⚠️ [API] API returned success=false or data=null');
         }
+      } else {
+        print('❌ [API] Non-200 status code: ${response.statusCode}');
       }
 
       return null;
     } catch (e, stackTrace) {
-      print('Get current infusion error: $e');
+      print('❌ [API] Get current infusion error: $e');
       print('Stack trace: $stackTrace');
       return null;
     }

@@ -199,9 +199,9 @@ class InfusionStatusCard extends StatelessWidget {
                     ),
                     Expanded(
                       child: _buildInfoItem(
-                        icon: Icons.scale,
-                        label: '현재 무게',
-                        value: '${session!.currentWeight.toStringAsFixed(0)} g',
+                        icon: Icons.water_drop,
+                        label: '남은 수액',
+                        value: '${session!.remainingPercentage.toStringAsFixed(0)}%',
                       ),
                     ),
                   ],

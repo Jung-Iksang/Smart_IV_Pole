@@ -86,7 +86,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:mariadb://61.245.248.192:3306/smartpole
+    url: jdbc:mariadb://61.245.248.193:3308/smartpole
 ```
 
 ### WebSocket 설정 확인
