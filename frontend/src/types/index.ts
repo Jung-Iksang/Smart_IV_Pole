@@ -60,6 +60,8 @@ export interface PoleData {
   estimatedTime: number;   // 예상 완료시간 (분)
   lastUpdate: Date;
   isButtonPressed: boolean; // 호출 버튼 상태
+  hasActiveAlert?: boolean; // ESP8266 알림 발생 여부 (퍼센트가 아닌 실제 알림 기준)
+  alertSeverity?: 'warning' | 'critical'; // 활성 알림의 심각도
 }
 
 export interface IVSession {

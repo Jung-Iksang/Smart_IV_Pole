@@ -9,11 +9,21 @@ interface BedCardProps {
 }
 
 const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
+  // 🔥 FIX: Alert-based color logic (not percentage-based)
+  // Only show red/yellow when there's an ACTIVE ALERT from ESP8266
   const getStatusColor = (): StatusColor => {
     if (!bed.poleData || bed.poleData.status === 'offline') return 'offline';
+
+    // ✅ PRIORITY 1: Check for active alert (from ESP8266 /api/esp/alert)
+    if (bed.poleData.hasActiveAlert) {
+      // Use alert severity to determine color
+      return bed.poleData.alertSeverity === 'critical' ? 'critical' : 'warning';
+    }
+
+    // ✅ PRIORITY 2: Check hardware status
     if (bed.poleData.status === 'error') return 'critical';
-    if (bed.poleData.percentage < 10) return 'critical';
-    if (bed.poleData.percentage <= 30) return 'warning';
+
+    // ✅ DEFAULT: No active alert = normal (ignore percentage thresholds)
     return 'normal';
   };
 

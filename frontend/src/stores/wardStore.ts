@@ -69,12 +69,22 @@ interface WardStore {
   disconnectPoleFromPatient: (patientId: string) => Promise<void>;
 }
 
-// Helper function to determine status color based on pole data
+// Helper function to determine status color based on ALERT STATE (not percentage)
+// 🔥 FIX: Only show red/yellow when there's an ACTIVE ALERT from ESP8266
+// Normal 30-second data updates should NOT change color
 const getStatusColor = (poleData?: PoleData): StatusColor => {
   if (!poleData || poleData.status === 'offline') return 'offline';
+
+  // ✅ PRIORITY 1: Check for active alert (from ESP8266 /api/esp/alert)
+  if (poleData.hasActiveAlert) {
+    // Use alert severity to determine color
+    return poleData.alertSeverity === 'critical' ? 'critical' : 'warning';
+  }
+
+  // ✅ PRIORITY 2: Check hardware status
   if (poleData.status === 'error') return 'critical';
-  if (poleData.percentage < 10) return 'critical';
-  if (poleData.percentage <= 30) return 'warning';
+
+  // ✅ DEFAULT: No active alert = normal (ignore percentage thresholds)
   return 'normal';
 };
 
@@ -301,18 +311,55 @@ export const useWardStore = create<WardStore>((set, get) => ({
   },
 
   acknowledgeAlert: (alertId: string, nurseId: string) => {
-    set((state) => ({
-      alerts: state.alerts.map(alert =>
-        alert.id === alertId
-          ? {
-              ...alert,
-              acknowledged: true,
-              acknowledgedBy: nurseId,
-              acknowledgedAt: new Date()
-            }
-          : alert
-      )
-    }));
+    set((state) => {
+      // Find the alert being acknowledged to get its poleId
+      const acknowledgedAlert = state.alerts.find(alert => alert.id === alertId);
+
+      // ✅ FIX: Clear hasActiveAlert flag when nurse acknowledges alert
+      if (acknowledgedAlert?.poleId) {
+        const newPoleData = new Map(state.poleData);
+        const poleData = newPoleData.get(acknowledgedAlert.poleId);
+
+        if (poleData) {
+          newPoleData.set(acknowledgedAlert.poleId, {
+            ...poleData,
+            hasActiveAlert: false,
+            alertSeverity: undefined,
+            status: 'online', // Restore to online status
+          });
+
+          console.log(`✅ [ALERT-CLEAR] Pole ${acknowledgedAlert.poleId} alert acknowledged, clearing hasActiveAlert flag`);
+        }
+
+        return {
+          alerts: state.alerts.map(alert =>
+            alert.id === alertId
+              ? {
+                  ...alert,
+                  acknowledged: true,
+                  acknowledgedBy: nurseId,
+                  acknowledgedAt: new Date()
+                }
+              : alert
+          ),
+          poleData: newPoleData,
+        };
+      }
+
+      // No poleId found, just update alert
+      return {
+        alerts: state.alerts.map(alert =>
+          alert.id === alertId
+            ? {
+                ...alert,
+                acknowledged: true,
+                acknowledgedBy: nurseId,
+                acknowledgedAt: new Date()
+              }
+            : alert
+        )
+      };
+    });
     get().saveToStorage();
   },
 

@@ -45,7 +45,8 @@
       "Bash(done)",
       "Read(//private/tmp/**)",
       "Bash(npx tsc:*)",
-      "Bash(awk:*)"
+      "Bash(awk:*)",
+      "Bash(flutter build:*)"
     ],
     "deny": [],
     "ask": []

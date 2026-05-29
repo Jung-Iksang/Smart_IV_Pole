@@ -3,8 +3,8 @@ class ApiConstants {
   // Base URLs
   // iPhone 시뮬레이터는 localhost 사용 가능
   // 실제 기기 테스트 시에는 컴퓨터의 IP 주소로 변경 필요
-  static const String baseUrl = 'http://10.49.238.173:8081';
-  static const String wsUrl = 'ws://10.49.238.173:8081';
+  static const String baseUrl = 'http://10.43.194.173:8081';
+  static const String wsUrl = 'ws://10.43.194.173:8081';
 
   // API Paths
   static const String apiVersion = '/api/v1';
