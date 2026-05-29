@@ -43,8 +43,6 @@
 
 ![대시보드](./docs/images/dashboard.png)
 
-### 병상 현황
-![병동 현황](./docs/images/ward-overview.png)
 
 </div>
 
