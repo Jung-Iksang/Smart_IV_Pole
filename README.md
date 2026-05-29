@@ -203,7 +203,7 @@ cd Smart_IV_Pole-be
 
 <details>
 <summary><b>Frontend (React)</b></summary>
-
+서버종료한 상태이므로 로컬에서 실행.
 ```bash
 cd frontend
 npm install
