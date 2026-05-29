@@ -179,7 +179,7 @@
 ## ⚡ 빠른 시작
 
 Docker로 전체 시스템을 한 번에 실행합니다.
-
+서버종료한 상태이므로 로컬에서 실행.
 ```bash
 git clone https://github.com/IksangJeong/Smart_IV_Pole.git
 cd Smart_IV_Pole
@@ -203,7 +203,7 @@ cd Smart_IV_Pole-be
 
 <details>
 <summary><b>Frontend (React)</b></summary>
-서버종료한 상태이므로 로컬에서 실행.
+
 ```bash
 cd frontend
 npm install
