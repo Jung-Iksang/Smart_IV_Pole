@@ -91,14 +91,17 @@ const AlertHistory: React.FC = () => {
 
   // 알림 유형 라벨
   const getAlertTypeLabel = (type: Alert['type']) => {
-    const labels = {
+    const labels: Record<Alert['type'], string> = {
       low: '수액 부족',
       empty: '수액 소진',
       abnormal: '이상 상태',
       button_pressed: '호출 버튼',
       battery_low: '배터리 부족',
       offline: '연결 끊김',
-      custom: '사용자 정의'
+      custom: '사용자 정의',
+      flow_fast: '유속 과다',
+      flow_slow: '유속 느림',
+      flow_stop: '줄 꺾임·혈액 역류 가능'
     };
     return labels[type] || type;
   };

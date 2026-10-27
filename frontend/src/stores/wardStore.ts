@@ -426,8 +426,12 @@ export const useWardStore = create<WardStore>((set, get) => ({
 
       // 서버 연결 성공 시 백엔드 데이터 로드
       await get().fetchPatients();
+    } else if (get().patients.length > 0 || get().beds.some(b => b.status === 'occupied')) {
+      // 서버 연결 실패지만 localStorage에서 불러온 환자/처방이 있으면 그대로 유지 (오프라인 시연)
+      console.warn('⚠️ 서버 연결 실패 - localStorage 데이터 유지');
+      get().updateWardStats();
     } else {
-      // 서버 연결 실패 시 빈 상태로 초기화
+      // 서버 연결 실패 + 저장된 데이터 없음 → 빈 상태로 초기화
       console.warn('⚠️ 서버 연결 실패 - 빈 상태로 초기화');
       set({
         patients: [],

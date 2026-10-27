@@ -82,7 +82,10 @@ export interface Alert {
   id: string;
   poleId: string;
   patientId?: string;
-  type: 'low' | 'empty' | 'abnormal' | 'button_pressed' | 'battery_low' | 'offline' | 'custom';
+  type:
+    | 'low' | 'empty' | 'abnormal' | 'button_pressed' | 'battery_low' | 'offline' | 'custom'
+    // BLE 직결 (ESP32 → 대시보드) 유속 알림 3종. 모바일 앱과 동일한 코드.
+    | 'flow_fast' | 'flow_slow' | 'flow_stop';
   severity: 'info' | 'warning' | 'critical';
   message: string;
   timestamp: Date;

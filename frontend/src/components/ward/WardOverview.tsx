@@ -10,7 +10,11 @@ import DrugPrescriptionModal from '../patient/DrugPrescriptionModal';
 import AlertCenter from '../alert/AlertCenter';
 import Sidebar from '../layout/Sidebar';
 import Button from '../ui/Button';
+import BleConnectButton from '../ble/BleConnectButton';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/Card';
+import { DEMO_KEY_MAP } from '../../utils/demoAlert';
+import { useDemoStore, DEMO_START_ML } from '../../stores/demoStore';
+import { Play, Pause, RotateCcw } from 'lucide-react';
 
 const WardOverview: React.FC = () => {
   const navigate = useNavigate();
@@ -33,6 +37,37 @@ const WardOverview: React.FC = () => {
   const [showAlertCenter, setShowAlertCenter] = useState(false);
   const [showDrugPrescriptionModal, setShowDrugPrescriptionModal] = useState(false);
   const [selectedPatientForPrescription, setSelectedPatientForPrescription] = useState<Patient | null>(null);
+  // 시연용: 첫 번째 재원 병상에 가상 수액(90 mL) 표시. 키보드 1/2/3 → 유속 빠름/느림/정지, 0 또는 Esc → 해제
+  const demo = useDemoStore();
+  const setDemoScenario = demo.setScenario;
+  const demoBedNumber = beds.find((b) => b.status === 'occupied' && b.patient)?.bedNumber ?? null;
+  const demoSeverity = demo.scenario === 'flow_slow' ? 'warning' : demo.scenario ? 'critical' : 'normal';
+  const displayStats = demoBedNumber
+    ? {
+        ...wardStats,
+        normal: wardStats.normal + (demoSeverity === 'normal' ? 1 : 0),
+        warning: wardStats.warning + (demoSeverity === 'warning' ? 1 : 0),
+        critical: wardStats.critical + (demoSeverity === 'critical' ? 1 : 0),
+      }
+    : wardStats;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target?.isContentEditable) return;
+
+      const scenario = DEMO_KEY_MAP[e.key];
+      if (scenario) {
+        setDemoScenario(scenario);
+      } else if (e.key === '0' || e.key === 'Escape') {
+        setDemoScenario(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [setDemoScenario]);
 
   // Update current time every minute
   useEffect(() => {
@@ -129,9 +164,12 @@ const WardOverview: React.FC = () => {
               </p>
             </div>
             <div className="flex items-center gap-4">
+              {/* ESP32 IV 폴 BLE 직결 (노트북 Chrome/Edge, 서버 불필요) */}
+              <BleConnectButton />
+
               {/* Connection Status */}
               <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-xl border border-gray-200">
-                {isConnected ? (
+                {isConnected || demoBedNumber ? (
                   <>
                     <Wifi className="w-5 h-5 text-green-500" />
                     <span className="text-sm text-green-500 font-medium">실시간 연결</span>
@@ -185,7 +223,7 @@ const WardOverview: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">정상 상태</p>
-                    <p className="text-2xl font-bold text-green-500">{wardStats.normal}</p>
+                    <p className="text-2xl font-bold text-green-500">{displayStats.normal}</p>
                   </div>
                   <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
                     <UserCheck className="w-6 h-6 text-green-600" />
@@ -203,7 +241,7 @@ const WardOverview: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">주의 필요</p>
-                    <p className="text-2xl font-bold text-yellow-500">{wardStats.warning}</p>
+                    <p className="text-2xl font-bold text-yellow-500">{displayStats.warning}</p>
                   </div>
                   <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6 text-yellow-600" />
@@ -221,7 +259,7 @@ const WardOverview: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-gray-600 text-sm font-medium">응급 상태</p>
-                    <p className="text-2xl font-bold text-red-500">{wardStats.critical}</p>
+                    <p className="text-2xl font-bold text-red-500">{displayStats.critical}</p>
                   </div>
                   <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
                     <AlertTriangle className="w-6 h-6 text-red-600" />
@@ -261,7 +299,30 @@ const WardOverview: React.FC = () => {
           <div className="lg:col-span-2 min-h-0">
             <Card className="h-full flex flex-col">
               <CardHeader className="flex-shrink-0 pb-3">
-                <CardTitle>병실 현황 - 301A호</CardTitle>
+                <div className="flex items-center justify-between">
+                  <CardTitle>병실 현황 - 301A호</CardTitle>
+                  {demoBedNumber && (
+                    <div className="flex items-center gap-2 opacity-0 hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={demo.toggleRun}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium text-white ${demo.running ? 'bg-gray-500 hover:bg-gray-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+                      >
+                        {demo.running ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        {demo.running ? '정지' : '시작'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={demo.reset}
+                        title={`${DEMO_START_ML} mL 로 초기화`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-sm text-gray-600 bg-gray-100 hover:bg-gray-200"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        {DEMO_START_ML} mL
+                      </button>
+                    </div>
+                  )}
+                </div>
               </CardHeader>
               <CardContent className="flex-1 min-h-0">
                 <div className="grid grid-cols-3 gap-4">
@@ -269,6 +330,7 @@ const WardOverview: React.FC = () => {
                     <BedCard
                       key={bed.bedNumber}
                       bed={bed}
+                      demo={bed.bedNumber === demoBedNumber ? { scenario: demo.scenario, volume: demo.volume } : null}
                       onClick={() => handleBedClick(bed.bedNumber)}
                     />
                   ))}

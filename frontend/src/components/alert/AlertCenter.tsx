@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Bell, AlertTriangle, AlertCircle, Info, CheckCircle,
   Clock, Filter, Volume2, VolumeX, X, Check,
-  Droplet, Battery, Phone, WifiOff, Settings
+  Droplet, Battery, Phone, WifiOff, Settings,
+  Gauge, Timer, OctagonAlert
 } from 'lucide-react';
 import { useWardStore } from '../../stores/wardStore';
 import { Alert } from '../../types';
+import { alertTypeLabel } from '../../utils/alertTypes';
 
 interface AlertCenterProps {
   isOpen: boolean;
@@ -123,6 +125,13 @@ const AlertCenter: React.FC<AlertCenterProps> = ({ isOpen, onClose }) => {
         return <WifiOff className="w-5 h-5" />;
       case 'abnormal':
         return <AlertTriangle className="w-5 h-5" />;
+      // BLE 직결 유속 알림 3종 (모바일 앱과 동일 아이콘)
+      case 'flow_fast':
+        return <Gauge className="w-5 h-5" />;
+      case 'flow_slow':
+        return <Timer className="w-5 h-5" />;
+      case 'flow_stop':
+        return <OctagonAlert className="w-5 h-5" />;
       default:
         return <AlertCircle className="w-5 h-5" />;
     }
@@ -283,6 +292,9 @@ const AlertCenter: React.FC<AlertCenterProps> = ({ isOpen, onClose }) => {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
+                            <span className="text-sm font-bold">
+                              {alertTypeLabel(alert.type)}
+                            </span>
                             {patient && (
                               <span className="text-sm font-medium text-gray-900">
                                 {patient.name}

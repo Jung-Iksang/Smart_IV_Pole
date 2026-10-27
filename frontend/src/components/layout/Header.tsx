@@ -1,4 +1,5 @@
-import { Bell, Search, Menu } from 'lucide-react';
+import { Bell, Menu } from 'lucide-react';
+import BleConnectButton from '../ble/BleConnectButton';
 
 interface HeaderProps {
   onToggleSidebar?: () => void;
@@ -32,6 +33,9 @@ export default function Header({
 
         {/* Right section */}
         <div className="flex items-center space-x-6">
+          {/* ESP32 IV 폴 BLE 직결 (노트북 Chrome/Edge) */}
+          <BleConnectButton />
+
           {/* Notifications */}
           <div className="relative">
             <button className="p-3 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl relative">

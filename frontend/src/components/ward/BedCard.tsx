@@ -1,27 +1,66 @@
 import React from 'react';
-import { BedInfo, StatusColor } from '../../types';
+import { BedInfo, PoleData, StatusColor } from '../../types';
 import { Battery, Droplet, Clock, AlertTriangle, Phone, Plus, User, Activity } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { DEMO_SCENARIOS, DemoScenario } from '../../utils/demoAlert';
+import { DEMO_CAPACITY_ML } from '../../stores/demoStore';
 
 interface BedCardProps {
   bed: BedInfo;
   onClick: () => void;
+  /** 시연용 가상 수액 (null이면 실제 데이터 표시) */
+  demo?: { scenario: DemoScenario | null; volume: number } | null;
 }
 
-const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
+/** 기기 없이 환자만 등록된 병상에서 시연할 때 쓰는 기본 측정값 */
+const DEMO_BASE_POLE: PoleData = {
+  poleId: 'DEMO',
+  weight: 360,
+  capacity: 500,
+  currentVolume: 360,
+  percentage: 72,
+  battery: 85,
+  status: 'online',
+  flowRate: 1.0,
+  prescribedRate: 1.0,
+  estimatedTime: 360,
+  lastUpdate: new Date(),
+  isButtonPressed: false,
+};
+
+const BedCard: React.FC<BedCardProps> = ({ bed, onClick, demo = null }) => {
+  const scenarioSpec = demo?.scenario ? DEMO_SCENARIOS[demo.scenario] : null;
+
+  // 시연 병상이면 가상 수액(90 mL → 감소)과 하드코딩 알림으로 카드를 그린다 (서버/기기 불필요)
+  const poleData: PoleData | undefined = demo
+    ? {
+        ...DEMO_BASE_POLE,
+        capacity: DEMO_CAPACITY_ML,
+        currentVolume: demo.volume,
+        percentage: (demo.volume / DEMO_CAPACITY_ML) * 100,
+        estimatedTime: demo.volume * 2 / 60,
+        prescribedRate:
+          bed.patient?.currentPrescription?.calculatedFlowRate ?? DEMO_BASE_POLE.prescribedRate,
+        status: 'online',
+        flowRate: scenarioSpec ? scenarioSpec.flowRate : DEMO_BASE_POLE.flowRate,
+        hasActiveAlert: !!scenarioSpec,
+        alertSeverity: scenarioSpec?.severity,
+      }
+    : bed.poleData;
+
   // 🔥 FIX: Alert-based color logic (not percentage-based)
   // Only show red/yellow when there's an ACTIVE ALERT from ESP8266
   const getStatusColor = (): StatusColor => {
-    if (!bed.poleData || bed.poleData.status === 'offline') return 'offline';
+    if (!poleData || poleData.status === 'offline') return 'offline';
 
     // ✅ PRIORITY 1: Check for active alert (from ESP8266 /api/esp/alert)
-    if (bed.poleData.hasActiveAlert) {
+    if (poleData.hasActiveAlert) {
       // Use alert severity to determine color
-      return bed.poleData.alertSeverity === 'critical' ? 'critical' : 'warning';
+      return poleData.alertSeverity === 'critical' ? 'critical' : 'warning';
     }
 
     // ✅ PRIORITY 2: Check hardware status
-    if (bed.poleData.status === 'error') return 'critical';
+    if (poleData.status === 'error') return 'critical';
 
     // ✅ DEFAULT: No active alert = normal (ignore percentage thresholds)
     return 'normal';
@@ -56,8 +95,8 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
   const isOccupied = bed.status === 'occupied' && bed.patient;
 
   // 디버깅: 퍼센트 값 확인
-  if (isOccupied && bed.poleData) {
-    console.log(`🔍 [BedCard ${bed.bedNumber}] Percentage: ${bed.poleData.percentage}%, CurrentVolume: ${bed.poleData.currentVolume}mL, Capacity: ${bed.poleData.capacity}mL`);
+  if (isOccupied && poleData) {
+    console.log(`🔍 [BedCard ${bed.bedNumber}] Percentage: ${poleData.percentage}%, CurrentVolume: ${poleData.currentVolume}mL, Capacity: ${poleData.capacity}mL`);
   }
 
   if (!isOccupied) {
@@ -83,7 +122,8 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
     <div
       onClick={onClick}
       className={cn(
-        'border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 h-64 flex flex-col',
+        'border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 flex flex-col',
+        scenarioSpec ? 'min-h-64' : 'h-64',
         getStatusColorClass(status),
         status === 'critical' && 'shadow-floating'
       )}
@@ -93,10 +133,20 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
         <div>
           <div className="text-base font-bold text-gray-900">{bed.bedNumber}</div>
           <div className="text-sm font-medium text-gray-700">{bed.patient?.name}</div>
+          {scenarioSpec && (<>
+            <div className={cn(
+              'mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap',
+              scenarioSpec.severity === 'critical' ? 'bg-red-500 text-white' : 'bg-orange-500 text-white'
+            )}>
+              <AlertTriangle className="w-3 h-3 flex-shrink-0" />
+              {scenarioSpec.label}
+            </div>
+            <div className="mt-0.5 text-[11px] text-gray-600 whitespace-nowrap">{scenarioSpec.detail}</div>
+          </>)}
         </div>
         <div className="flex items-center gap-2">
           {/* Alert Indicators */}
-          {bed.poleData?.isButtonPressed && (
+          {poleData?.isButtonPressed && (
             <div className="w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center animate-pulse">
               <Phone className="w-3 h-3 text-white" />
             </div>
@@ -106,7 +156,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
               <AlertTriangle className="w-3 h-3 text-white" />
             </div>
           )}
-          {bed.poleData?.status === 'offline' && (
+          {poleData?.status === 'offline' && (
             <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
           )}
         </div>
@@ -114,7 +164,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
 
       {/* IV Status */}
       <div className="flex-1">
-        {bed.poleData ? (
+        {poleData ? (
           <>
             {/* IV Fluid Level */}
             <div className="mb-3">
@@ -128,7 +178,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
                   <span className="text-sm font-medium text-gray-700">수액량</span>
                 </div>
                 <span className="text-sm font-bold text-gray-900">
-                  {Math.round(bed.poleData.percentage)}%
+                  {Math.round(poleData.percentage)}%
                 </span>
               </div>
               
@@ -137,7 +187,7 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{
-                    width: `${Math.max(bed.poleData.percentage, 2)}%`,
+                    width: `${Math.max(poleData.percentage, 2)}%`,
                     backgroundColor: status === 'normal' ? '#4CAF50' :
                                    status === 'warning' ? '#FFC107' :
                                    status === 'critical' ? '#F44336' :
@@ -147,8 +197,8 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
               </div>
               
               <div className="flex justify-between text-xs text-gray-600 mt-1">
-                <span>{Math.round(bed.poleData.currentVolume)}ml</span>
-                <span>{bed.poleData.capacity}ml</span>
+                <span>{Math.round(poleData.currentVolume)}ml</span>
+                <span>{poleData.capacity}ml</span>
               </div>
             </div>
 
@@ -161,11 +211,11 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
                 </div>
                 <div className="flex items-center gap-1">
                   <span className="text-xs font-medium text-gray-800">
-                    {bed.poleData.flowRate ? bed.poleData.flowRate.toFixed(1) : '-'} mL/min
+                    {poleData.flowRate ? poleData.flowRate.toFixed(1) : '-'} mL/min
                   </span>
-                  {bed.poleData.prescribedRate && (
+                  {poleData.prescribedRate && (
                     <span className="text-xs text-gray-500">
-                      / {bed.poleData.prescribedRate.toFixed(1)}
+                      / {poleData.prescribedRate.toFixed(1)}
                     </span>
                   )}
                 </div>
@@ -180,10 +230,10 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
                   <span className="text-xs text-gray-600">예상시간</span>
                 </div>
                 <span className={`text-xs font-medium ${
-                  bed.poleData.estimatedTime < 30 ? 'text-red-600' :
-                  bed.poleData.estimatedTime < 60 ? 'text-orange-600' : 'text-gray-800'
+                  poleData.estimatedTime < 30 ? 'text-red-600' :
+                  poleData.estimatedTime < 60 ? 'text-orange-600' : 'text-gray-800'
                 }`}>
-                  {formatTime(bed.poleData.estimatedTime)}
+                  {formatTime(poleData.estimatedTime)}
                 </span>
               </div>
             </div>
@@ -192,13 +242,13 @@ const BedCard: React.FC<BedCardProps> = ({ bed, onClick }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <Battery className={`w-3 h-3 ${
-                  bed.poleData.battery > 30 ? 'text-green-500' :
-                  bed.poleData.battery > 15 ? 'text-orange-500' : 'text-red-500'
+                  poleData.battery > 30 ? 'text-green-500' :
+                  poleData.battery > 15 ? 'text-orange-500' : 'text-red-500'
                 }`} />
                 <span className="text-xs text-gray-600">배터리</span>
               </div>
               <span className="text-xs font-medium text-gray-800">
-                {Math.round(bed.poleData.battery)}%
+                {Math.round(poleData.battery)}%
               </span>
             </div>
           </>

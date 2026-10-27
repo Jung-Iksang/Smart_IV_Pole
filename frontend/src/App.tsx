@@ -6,8 +6,10 @@ import PatientList from './pages/PatientList'
 import Statistics from './pages/Statistics'
 import Settings from './pages/Settings'
 import DeviceManagement from './pages/DeviceManagement'
+import { Toaster } from 'react-hot-toast'
 import { useWardStore } from './stores/wardStore'
 import { useWebSocket } from './hooks/useWebSocket'
+import BlePatientSelectModal from './components/ble/BlePatientSelectModal'
 
 function App() {
   const { checkConnection, loadStoredData } = useWardStore()
@@ -111,6 +113,10 @@ function App() {
         <Route path="/statistics" element={<Statistics />} />
         <Route path="/settings" element={<Settings />} />
       </Routes>
+      {/* BLE 직결 알림 토스트 (모바일 앱의 상단 배너에 대응) */}
+      <Toaster position="top-right" />
+      {/* BLE 폴 → 환자 매핑 선택 모달 (연결 직후 매핑이 없을 때 자동 표시) */}
+      <BlePatientSelectModal />
     </Router>
   )
 }
